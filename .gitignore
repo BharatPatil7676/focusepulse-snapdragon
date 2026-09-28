@@ -1,0 +1,6 @@
+*.pyc  
+venv/  
+aihub-env/  
+qai_env/  
+export_assets/  
+*.zip 
