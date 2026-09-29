@@ -1,72 +1,68 @@
-FocusPulse
-Real-time fatigue and attention monitoring using webcam-based computer vision.
+# FocusPulse: Offline Fatigue Monitor for Study Sessions
 
-What it does
+Built for the **Snapdragon® AI Lab Build & Present Challenge** (Qualcomm x Unstop).
 
-FocusPulse uses a webcam to monitor facial and eye-related signals and estimate fatigue in real time.
-The system processes facial information and provides a fatigue indication to help identify reduced attention or
-possible fatigue.
+FocusPulse uses an ordinary webcam to notice when a student is getting mentally tired during long study sessions, and suggests a break before focus collapses. It reads the pulse from tiny colour changes in the skin (rPPG), tracks heart-rate variability (HRV) and blinking, and combines them into a 0-100 fatigue score. Everything runs locally. No video or health data leaves the laptop.
 
-How it works
+![Calm state](images/calm.png)
+![Break alert](images/alert.png)
 
-Webcam
-  |
-  v
-Face Detection / Facial Landmarks
-  |
-  v
-Eye & Blink Analysis
-  |
-  v
-Fatigue / Attention Estimation
-  |
-  v
-Real-Time Output
+> Screenshots: calm state (low score) and the "take a break" alert.
 
-Technology Stack
+## The problem
 
-• Python
-• OpenCV
-• MediaPipe
-• SciPy
-• Webcam-based computer vision
+Students preparing for exams and placements study for hours and rarely notice fatigue building. They push until focus drops. Wearables can measure this, but most students don't own one. Almost every student has a webcam.
 
-Qualcomm AI Hub / Snapdragon Validation
+## How it works
 
-A selected face-processing model, FaceMap 3DMM, was compiled and profiled on a real Snapdragon device
-using Qualcomm AI Hub.
+1. **Face tracking:** MediaPipe Face Mesh (468 landmarks) finds the forehead and eyes on every frame.
+2. **Pulse (rPPG):** the average forehead colour per frame is turned into a pulse signal with the POS (Plane-Orthogonal-to-Skin) algorithm.
+3. **Filtering:** a Butterworth bandpass filter (0.75-2.5 Hz, i.e. 45-150 bpm) keeps only the heartbeat band.
+4. **HRV:** peaks give inter-beat intervals, and their spread (SDNN) is the variability measure. Lower HRV compared to your own baseline points to rising fatigue.
+5. **Blinks:** Eye Aspect Ratio (EAR) from the eye landmarks gives eye-closure fraction. Longer closures point to drowsiness.
+6. **Fusion:** a transparent rule-based score. Up to 50 points from HRV drop against a personal baseline (first 45 seconds), and up to 50 from eye closure. An alert appears when the score gets high.
 
-Verified profiling result
+The score is rule-based on purpose, so every point of it can be explained.
 
-• Device: Samsung Galaxy S25
-• Runtime: TFLite
-• Estimated inference time: ~0.2 ms
-• Peak memory: 38 MiB
-• Total operations: 38
-• Compute units: NPU: 38 operations, GPU: 0, CPU: 0
-This demonstrates that the selected model configuration can be accelerated using the Snapdragon NPU.
-The Qualcomm AI Hub profiling validates the selected model configuration. It does not mean that the complete
-Python application is currently running end-to-end on the NPU.
+## Why Snapdragon
 
-Current Limitations
+Fatigue monitoring is an always-on background job that runs for hours, which is exactly where a low-power NPU beats a CPU that would drain the battery. It is also privacy-sensitive (face video plus heart data), so it should never go to the cloud.
 
-• The current Python application is not an end-to-end NPU deployment.
-• AI Hub profiling was performed on a selected face-processing model rather than the complete application.
-• The profiled FaceMap 3DMM model is not identical to the application's 468-point MediaPipe Face Mesh
-pipeline.
-• Fatigue estimation can be affected by lighting, camera position, head movement and individual differences.
-• Further optimization is required for complete on-device NPU deployment.
+The two neural networks in the per-frame loop are the face detector and the 468-point face landmark model. We profiled both on a **cloud-hosted Snapdragon X Elite** through Qualcomm AI Hub:
 
-Future Scope
+| Model | Est. inference time | Ops on NPU | Ops on CPU/GPU |
+|---|---|---|---|
+| Face detector | 0.7 ms | 145 / 145 | 0 |
+| Face landmarks (468 points) | 0.3 ms | 105 / 105 | 0 |
 
-• Integrate an optimized Qualcomm AI Hub model into the complete pipeline.
-• Deploy the application on Snapdragon hardware.
-• Improve fatigue estimation using temporal analysis.
-• Add personalized fatigue thresholds.
-• Optimize power and latency for continuous monitoring.
+- Together that is about 1 ms of a 33 ms frame budget at 30 fps (about 3%), leaving the rest for the pulse and HRV math.
+- Accuracy check: NPU outputs matched the reference model (PSNR 67-138 dB, against the 30 dB "good" guideline).
+- Full details and job links: [benchmarks/RESULTS.md](benchmarks/RESULTS.md)
 
-Conclusion
+## Honest scope
 
-FocusPulse demonstrates a computer-vision approach for real-time fatigue and attention monitoring, together
-with Qualcomm AI Hub validation of a selected face-processing model on Snapdragon hardware.
-The project provides a foundation for future NPU-accelerated, low-latency fatigue monitoring applications.
+- The times are **estimates from Qualcomm AI Hub profiling** on a cloud-hosted Snapdragon X Elite device, not measurements from our own laptop.
+- The demo app in this repo currently runs MediaPipe on the **CPU**. The NPU part is a validated deployment path with real profiling data. Running the full app on a Snapdragon laptop through ONNX Runtime with the QNN provider is the next step.
+- FocusPulse is a **study-fatigue indicator, not a medical device**. rPPG accuracy depends on lighting, distance and movement, and the thresholds were tuned on one person.
+
+## Run it
+
+Requires Python 3.10-3.12 (MediaPipe does not support newer versions yet) and a webcam.
+
+```bash
+pip install -r requirements.txt
+python app.py
+```
+
+Sit facing a light source, stay still for the first 10 seconds. The first 45 seconds calibrate your personal baseline. Press `q` to quit.
+
+## Roadmap
+
+- Run the full pipeline on a Snapdragon X laptop via ONNX Runtime QNN and measure real latency and power
+- Streamlit dashboard with a live pulse waveform
+- Small classifier trained on self-rated fatigue, exported to ONNX
+- Validation against a reference pulse sensor
+
+## Author
+
+Bharat Patil (GitHub: [BharatPatil7676](https://github.com/BharatPatil7676)), ECE student.
