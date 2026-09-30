@@ -4,8 +4,8 @@ Built for the **Snapdragon® AI Lab Build & Present Challenge** (Qualcomm x Unst
 
 FocusPulse uses an ordinary webcam to notice when a student is getting mentally tired during long study sessions, and suggests a break before focus collapses. It reads the pulse from tiny colour changes in the skin (rPPG), tracks heart-rate variability (HRV) and blinking, and combines them into a 0-100 fatigue score. Everything runs locally. No video or health data leaves the laptop.
 
-![Calm state](images/calm.png)
-![Break alert](images/alert.png)
+![Calm state](calm.png)
+![Break alert](alert.png)
 
 > Screenshots: calm state (low score) and the "take a break" alert.
 
